@@ -1,0 +1,47 @@
+<html>
+    <head>
+        <title>DPLA-Map</title>
+        <link href="http://fonts.googleapis.com/css?family=IM+Fell+DW+Pica" rel="stylesheet" type="text/css">
+        <link rel="apple-touch-icon" href="/favicon.ico" />
+        <link rel="stylesheet" type="text/css" href="css/screen.css" media="Screen"> 
+        <link rel="stylesheet" type="text/css" href="css/handheld.css" media="handheld"> 
+        <script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=true"></script>
+        <script src="js/jquery-1.5.min.js"></script>
+        <script src="js/modernizr-1.6.min.js"></script>
+        <script src="js/dpla-map.js"></script>
+        <script src="js/handheld.js"></script>
+        <script type="text/javascript">
+            if (is_handheld()) {
+                $('head').append('<link rel="stylesheet" type="text/css" href="css/handheld.css">')
+            }
+            $(document).ready(function() {
+                main();
+            });
+        </script>
+    </head>
+    <body>
+        <header>DPLA<span style="color:green;">Map</span></header>
+        <span id="github">
+            <a href="http://github.com/edsu/dpla-map"><img style="position: absolute; top: 0; right: 0; border: 0;" src="http://s3.amazonaws.com/github/ribbons/forkme_right_gray_6d6d6d.png" alt="Fork me on GitHub" /></a> 
+        </span>
+
+        <div class="about">
+            An experiment to see what the 
+            <a href="https://github.com/dpla/platform/wiki">DPLA API</a> 
+            results are for your current location, using HTML5 geolocation API.
+            If you want to override your location to check a particular 
+            location drop the geo-coordinates in here:
+            <form id="coords" action="" method="GET">
+                lat: <input name="lat" size=6>
+                lon: <input name="lon" size=6>
+                <input type="submit" value="go">
+            </form>
+        </div>
+ 
+        <div id="map_canvas">
+        </div>
+
+        </div>
+    
+   </body>
+</html>
