@@ -1,4 +1,5 @@
 var map;
+var count = 0;
 
 function main() {
     if (Modernizr.geolocation) {
@@ -45,16 +46,18 @@ function lookup(position) {
 }
 
 function displayDocs(data) {
+    count = 0;
     $.each(data.docs, displayDoc);
 }
 
 function displayDoc(index, doc) {
+    count += 1;
+    console.log(count + ": " + doc.title);
     $(doc.spatial).each(function(i, coord) {
 
         // create a marker for the subject
         var coords = coord.coordinates;
         if (coords) {
-
             coords = coords.split(",");
             var lat = parseFloat(coords[0]);
             var lon = parseFloat(coords[1]);
