@@ -1,41 +1,27 @@
+var API_KEY = "0826ae9d2c064f8c8582859abf50f7d6"
 var map;
 var count = 0;
 
 function main() {
     if (Modernizr.geolocation) {
-        navigator.geolocation.getCurrentPosition(lookup);
+        navigator.geolocation.getCurrentPosition(makeMap);
     } else {
         displayError();
     }
 }
 
-function lookup(position) {
+function makeMap(position) {
     var lat = parseFloat(position.coords.latitude);
     var lon = parseFloat(position.coords.longitude);
-    var accuracy = position.coords.accuracy;
-
-    // allow lat/lon override
-    var m = window.location.search.match(/lat=([0-9.\-]+)&lon=([0-9.\-]+)/);
-    if (m) {
-        lat = parseFloat(m[1]);
-        lon = parseFloat(m[2]);
-    }
-
-    // update the form with whatever coords we're using
-    $('input[name="lat"]').val(lat);
-    $('input[name="lon"]').val(lon);
-
     var loc = new google.maps.LatLng(lat, lon);
+
     var opts = {
-        zoom: getZoom() - 5,
+        zoom: getZoom() - 4,
         center: loc,
         mapTypeId: google.maps.MapTypeId.ROADMAP
     };
 
-    url = "http://api.dp.la/v1/items?spatial.distance=500mi&page_size=500&spatial.coordinates=" + lat + "," + lon;
-    $.ajax({url: url, dataType: "jsonp", success: displayDocs});
     map = new google.maps.Map(document.getElementById("map_canvas"), opts);
-
     var marker = new google.maps.Marker({
         map: map,
         position: loc,
@@ -43,17 +29,33 @@ function lookup(position) {
         title: 'Current Location',
     });
 
+    google.maps.event.addListener(map, 'idle', lookupDocs);
+}
+
+function lookupDocs() {
+    var center = map.getCenter();
+    var lat = center.jb;
+    var lon = center.kb;
+
+    var bounds = map.getBounds();
+    var sw = bounds.getSouthWest();
+    var ne = bounds.getNorthEast();
+    var nw = new google.maps.LatLng(ne.lat(), sw.lng());
+    var lonWidth = google.maps.geometry.spherical.computeDistanceBetween(ne, nw)
+    radius = parseInt(lonWidth / 1600) + "mi";
+
+    url = "http://api.dp.la/v2/items?sourceResource.spatial.distance=" + radius + "&page_size=500&sourceResource.spatial.coordinates=" + lat + "," + lon +"&api_key=" + API_KEY;
+    console.log("fetching results from dpla: " + url);
+    $.ajax({url: url, dataType: "jsonp", success: displayDocs});
 }
 
 function displayDocs(data) {
-    count = 0;
     $.each(data.docs, displayDoc);
 }
 
 function displayDoc(index, doc) {
     count += 1;
-    console.log(count + ": " + doc.title);
-    $(doc.spatial).each(function(i, coord) {
+    $(doc.sourceResource.spatial).each(function(i, coord) {
 
         // create a marker for the subject
         var coords = coord.coordinates;
@@ -62,21 +64,23 @@ function displayDoc(index, doc) {
             var lat = parseFloat(coords[0]);
             var lon = parseFloat(coords[1]);
             var loc = new google.maps.LatLng(lat, lon);
+            var title = doc.sourceResource.title;
+            var provider = doc.provider.name;
 
             var icon = getPushpin();
 
             var marker = new google.maps.Marker({
                 map: map,
                 icon: icon,
-                position: loc,
-                title: doc.title 
+                position: loc
             });
 
-            var url = doc.dplaSourceRecord.handle[2];
+            //var url = doc.dplaSourceRecord.handle[2];
+            var url = doc.isShownAt
 
             // add a info window to the marker so that it displays when 
             // someone clicks on the marker
-            html = '<span class="map_info">' + '<a href="' + url + '">' + doc.title + '</a></span>';
+            html = '<span class="map_info">' + '<a href="' + url + '">' + title + '</a> from ' + provider + '</span>';
             var info = new google.maps.InfoWindow({ content: html});
             info.setPosition(loc);
             google.maps.event.addListener(marker, 'click', function() {
