@@ -80,7 +80,7 @@ function displayDoc(index, doc) {
 
             // add a info window to the marker so that it displays when 
             // someone clicks on the marker
-            html = '<span class="map_info">' + '<a href="' + url + '">' + title + '</a> from ' + provider + '</span>';
+            html = '<span class="map_info">' + '<a target="_new" href="' + url + '">' + title + '</a> from ' + provider + '</span>';
             var info = new google.maps.InfoWindow({ content: html});
             info.setPosition(loc);
             google.maps.event.addListener(marker, 'click', function() {
