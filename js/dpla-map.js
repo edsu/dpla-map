@@ -55,6 +55,7 @@ function displayDocs(data) {
 
 function displayDoc(index, doc) {
     count += 1;
+    // TODO: Multiple items with same coords need to be dithered or aggregated
     $(doc.sourceResource.spatial).each(function(i, coord) {
 
         // create a marker for the subject
@@ -64,23 +65,37 @@ function displayDoc(index, doc) {
             var lat = parseFloat(coords[0]);
             var lon = parseFloat(coords[1]);
             var loc = new google.maps.LatLng(lat, lon);
-            var title = doc.sourceResource.title;
+
+	    var source = doc.sourceResource;
+	    var title = source.title;
+	    var description = '';
+	    if ('description' in source) {
+                 description = source.description;
+            }
+	    var date = '?';
+	    if ('date' in source) {
+                date = source.date.displayDate;
+            }
             var provider = doc.provider.name;
+	    var providerId = doc.provider['@id'];
 
             var icon = getPushpin();
 
             var marker = new google.maps.Marker({
                 map: map,
                 icon: icon,
-                position: loc
+                position: loc,
+		title: title + ' -- ' + provider
             });
 
-            //var url = doc.dplaSourceRecord.handle[2];
-            var url = doc.isShownAt
+            var recordId = doc['@id'];
+	    // No link to the record included.  What a pain in the butt!
+	    var recordUrl = recordId.replace('http://dp.la/api/items','http://dp.la/item');
+            var viewUrl = doc.isShownAt
 
             // add a info window to the marker so that it displays when 
             // someone clicks on the marker
-            html = '<span class="map_info">' + '<a target="_new" href="' + url + '">' + title + '</a> from ' + provider + '</span>';
+            html = '<span class="map_info">' + '<a target="_new" href="' + viewUrl + '">' + title + '</a> from ' + provider + '.  '+description+'</span>';
             var info = new google.maps.InfoWindow({ content: html});
             info.setPosition(loc);
             google.maps.event.addListener(marker, 'click', function() {
