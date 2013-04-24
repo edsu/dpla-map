@@ -26,6 +26,7 @@ function makeMap(position) {
     oms = new OverlappingMarkerSpiderfier(map, {markersWontMove: true, markersWontHide: true});
     var info = new google.maps.InfoWindow();
     oms.addListener('click', function(marker) {
+	console.log('Click');
 	info.setContent(marker.desc);
 	info.open(map, marker);
     });
@@ -56,22 +57,30 @@ function lookupDocs() {
     $.ajax({url: url, dataType: "jsonp", success: displayDocs});
 }
 
+function clearMarkers() {
+    var markers = oms.getMarkers();
+    for (var i=0; i < markers.length; i++) {
+	markers[i].setMap(null);
+    }
+    oms.clearMarkers();
+}
+
 function displayDocs(data) {
+    count = 0;
+    clearMarkers();
     $.each(data.docs, displayDoc);
     console.log('Points mapped: ' + count);
 }
 
 function displayDoc(index, doc) {
     count += 1;
-    // TODO: Multiple items with same coords need to be dithered or aggregated
     var loc; 
     $(doc.sourceResource.spatial).each(function(i,coord) {
 	var coords = coord.coordinates;
+        // TODO: We use the first set of coords we find, but it may not be the best
         if (coords && !loc) {
             coords = coords.split(",");
             var lat = parseFloat(coords[0]);
-	    // offset so multiple markers display (FIXME: could use a smarter algo)
-            //lat = lat + .00001*count;
             var lon = parseFloat(coords[1]);
             loc = new google.maps.LatLng(lat, lon);
 	 }
