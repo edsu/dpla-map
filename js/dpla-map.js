@@ -50,7 +50,7 @@ function lookupDocs() {
     var ne = bounds.getNorthEast();
     var nw = new google.maps.LatLng(ne.lat(), sw.lng());
     var lonWidth = google.maps.geometry.spherical.computeDistanceBetween(ne, nw)
-    radius = parseInt(lonWidth / 1600) + "mi";
+    radius = parseInt(lonWidth / 2 / 1000) + "km";
 
     url = "http://api.dp.la/v2/items?sourceResource.spatial.distance=" + radius + "&page_size=500&sourceResource.spatial.coordinates=" + lat + "," + lon +"&api_key=" + API_KEY;
     console.log("fetching results from dpla: " + url);
