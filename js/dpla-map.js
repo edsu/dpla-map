@@ -1,5 +1,6 @@
 var API_KEY = "0826ae9d2c064f8c8582859abf50f7d6"
 var map;
+var oms;
 var count = 0;
 
 function main() {
@@ -22,6 +23,12 @@ function makeMap(position) {
     };
 
     map = new google.maps.Map(document.getElementById("map_canvas"), opts);
+    oms = new OverlappingMarkerSpiderfier(map, {markersWontMove: true, markersWontHide: true});
+    var info = new google.maps.InfoWindow();
+    oms.addListener('click', function(marker) {
+	info.setContent(marker.desc);
+	info.open(map, marker);
+    });
     var marker = new google.maps.Marker({
         map: map,
         position: loc,
@@ -51,58 +58,63 @@ function lookupDocs() {
 
 function displayDocs(data) {
     $.each(data.docs, displayDoc);
+    console.log('Points mapped: ' + count);
 }
 
 function displayDoc(index, doc) {
     count += 1;
     // TODO: Multiple items with same coords need to be dithered or aggregated
-    $(doc.sourceResource.spatial).each(function(i, coord) {
-
-        // create a marker for the subject
-        var coords = coord.coordinates;
-        if (coords) {
+    var loc; 
+    $(doc.sourceResource.spatial).each(function(i,coord) {
+	var coords = coord.coordinates;
+        if (coords && !loc) {
             coords = coords.split(",");
             var lat = parseFloat(coords[0]);
+	    // offset so multiple markers display (FIXME: could use a smarter algo)
+            //lat = lat + .00001*count;
             var lon = parseFloat(coords[1]);
-            var loc = new google.maps.LatLng(lat, lon);
+            loc = new google.maps.LatLng(lat, lon);
+	 }
+    });
 
+    // create a marker for the subject
+    if (loc) {
 	    var source = doc.sourceResource;
 	    var title = source.title;
 	    var description = '';
 	    if ('description' in source) {
                  description = source.description;
             }
-	    var date = '?';
+	    var date = '';
 	    if ('date' in source) {
-                date = source.date.displayDate;
+                date = ' (' + source.date.displayDate + ') ';
             }
             var provider = doc.provider.name;
 	    var providerId = doc.provider['@id'];
 
             var icon = getPushpin();
 
+            // TODO: Choose marker based on type of resource
             var marker = new google.maps.Marker({
                 map: map,
                 icon: icon,
                 position: loc,
-		title: title + ' -- ' + provider
+		title: title + ' -- ' + provider + date
             });
 
             var recordId = doc['@id'];
-	    // No link to the record included.  What a pain in the butt!
+	    // No link to the record included.  What a pain in the butt! Make our own
 	    var recordUrl = recordId.replace('http://dp.la/api/items','http://dp.la/item');
             var viewUrl = doc.isShownAt
 
             // add a info window to the marker so that it displays when 
             // someone clicks on the marker
-            html = '<span class="map_info">' + '<a target="_new" href="' + viewUrl + '">' + title + '</a> from ' + provider + '.  '+description+'</span>';
-            var info = new google.maps.InfoWindow({ content: html});
-            info.setPosition(loc);
-            google.maps.event.addListener(marker, 'click', function() {
-                info.open(map, marker);
-            });
+            var item = '<a target="_new" href="' + recordUrl + '">' + title + '</a>' + date;
+            provider = '<a target="_new" href="' + viewUrl + '">' + provider + '</a>.';
+            var html = '<span class="map_info">' + item +' from ' + provider + ' '+description+'</span>';
+	    marker.desc = html;
+	    oms.addMarker(marker);
         }
-    });
 }
 
 function displayError() {
