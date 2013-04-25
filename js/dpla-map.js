@@ -1,7 +1,14 @@
 var API_KEY = "0826ae9d2c064f8c8582859abf50f7d6"
+var PAGE_SIZE = 100;
+var MAX_RESULTS = 500;
 var map;
 var oms;
-var count = 0;
+var lat;
+var lon;
+var radius;
+var count;
+var page;
+var ajaxRequest;
 
 function main() {
     if (Modernizr.geolocation) {
@@ -17,7 +24,7 @@ function makeMap(position) {
     var loc = new google.maps.LatLng(lat, lon);
 
     var opts = {
-        zoom: getZoom() - 4,
+        zoom: getZoom() - 2,
         center: loc,
         mapTypeId: google.maps.MapTypeId.ROADMAP
     };
@@ -38,12 +45,15 @@ function makeMap(position) {
     });
 
     google.maps.event.addListener(map, 'idle', lookupDocs);
+    google.maps.event.addListener(map, 'bounds_changed', cancelLookup);
 }
 
 function lookupDocs() {
+    count = 0;
+    page = 0;
     var center = map.getCenter();
-    var lat = center.jb;
-    var lon = center.kb;
+    lat = center.jb;
+    lon = center.kb;
 
     var bounds = map.getBounds();
     var sw = bounds.getSouthWest();
@@ -52,9 +62,20 @@ function lookupDocs() {
     var lonWidth = google.maps.geometry.spherical.computeDistanceBetween(ne, nw)
     radius = parseInt(lonWidth / 2 / 1000) + "km";
 
-    url = "http://api.dp.la/v2/items?sourceResource.spatial.distance=" + radius + "&page_size=500&sourceResource.spatial.coordinates=" + lat + "," + lon +"&api_key=" + API_KEY;
+    clearMarkers();
+    lookupByLocation(lat,lon,radius,page);
+}
+
+function lookupByLocation(lat,lon,radius,page) {
+    url = "http://api.dp.la/v2/items?sourceResource.spatial.distance=" + radius + "&page_size=100&sourceResource.spatial.coordinates=" + lat + "," + lon + "&sort_by_pin=" + lat + "," + lon + "&page=" + page + "&api_key=" + API_KEY;
     console.log("fetching results from dpla: " + url);
-    $.ajax({url: url, dataType: "jsonp", success: displayDocs});
+    ajaxRequest = $.ajax({url: url, dataType: "jsonp", success: displayDocs});
+}
+
+function cancelLookup() {
+    if (ajaxRequest) {
+	ajaxRequest.abort();
+    }
 }
 
 function clearMarkers() {
@@ -66,8 +87,10 @@ function clearMarkers() {
 }
 
 function displayDocs(data) {
-    count = 0;
-    clearMarkers();
+    if (data.docs.length == PAGE_SIZE && count < MAX_RESULTS - PAGE_SIZE) {
+	page += 1;
+	lookupByLocation(lat,lon,radius,page);
+    }
     $.each(data.docs, displayDoc);
     console.log('Points mapped: ' + count);
 }
