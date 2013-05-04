@@ -1,6 +1,6 @@
 var API_KEY = "0826ae9d2c064f8c8582859abf50f7d6"
 var PAGE_SIZE = 100;
-var MAX_RESULTS = 500;
+var MAX_RESULTS = 100; // was 500, but multiple pages don't work with sorting;
 var map;
 var oms;
 var lat;
@@ -9,6 +9,8 @@ var radius;
 var count;
 var page;
 var ajaxRequest;
+var markerBounds;
+var firstDraw = true;
 
 function main() {
     if (Modernizr.geolocation) {
@@ -55,19 +57,21 @@ function lookupDocs() {
     lat = center.jb;
     lon = center.kb;
 
-    var bounds = map.getBounds();
-    var sw = bounds.getSouthWest();
-    var ne = bounds.getNorthEast();
+    var mapBounds = map.getBounds();
+    var sw = mapBounds.getSouthWest();
+    var ne = mapBounds.getNorthEast();
     var nw = new google.maps.LatLng(ne.lat(), sw.lng());
+    // assumes map wider than tall
     var lonWidth = google.maps.geometry.spherical.computeDistanceBetween(ne, nw)
     radius = parseInt(lonWidth / 2 / 1000) + "km";
 
     clearMarkers();
+    markerBounds = new google.maps.LatLngBounds();
     lookupByLocation(lat,lon,radius,page);
 }
 
 function lookupByLocation(lat,lon,radius,page) {
-    url = "http://api.dp.la/v2/items?sourceResource.spatial.distance=" + radius + "&page_size=100&sourceResource.spatial.coordinates=" + lat + "," + lon + "&sort_by_pin=" + lat + "," + lon + "&page=" + page + "&api_key=" + API_KEY;
+    url = "http://api.dp.la/v2/items?sourceResource.spatial.distance=" + radius + "&page_size=100&sourceResource.spatial.coordinates=" + lat + "," + lon + "&sort_by_pin=" + lat + "," + lon + "&sort_by=sourceResource.spatial.coordinates&page=" + page + "&api_key=" + API_KEY;
     console.log("fetching results from dpla: " + url);
     ajaxRequest = $.ajax({url: url, dataType: "jsonp", success: displayDocs});
 }
@@ -87,12 +91,19 @@ function clearMarkers() {
 }
 
 function displayDocs(data) {
+    var done = true;
     if (data.docs.length == PAGE_SIZE && count < MAX_RESULTS - PAGE_SIZE) {
 	page += 1;
 	lookupByLocation(lat,lon,radius,page);
+	done = false;
     }
     $.each(data.docs, displayDoc);
     console.log('Points mapped: ' + count);
+    if (done && firstDraw) {
+	firstDraw = false;
+	map.fitBounds(markerBounds);
+	console.log('Zoomed to bounds');
+    }
 }
 
 function displayDoc(index, doc) {
@@ -146,6 +157,7 @@ function displayDoc(index, doc) {
             var html = '<span class="map_info">' + item +' from ' + provider + ' '+description+'</span>';
 	    marker.desc = html;
 	    oms.addMarker(marker);
+	    markerBounds.extend(marker.getPosition());
         }
 }
 
