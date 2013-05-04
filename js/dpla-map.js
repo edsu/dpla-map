@@ -59,11 +59,16 @@ function lookupDocs() {
 
     clearMarkers();
     dplaMap.markerBounds = new google.maps.LatLngBounds();
-    lookupByLocation(dplaMap.lat,dplaMap.lon,dplaMap.radius,dplaMap.page);
+    lookupByLocation(dplaMap.lat,dplaMap.lon,dplaMap.radius,dplaMap.page,true);
 }
 
-function lookupByLocation(lat,lon,radius,page) {
-    url = "http://api.dp.la/v2/items?sourceResource.spatial.distance=" + radius + "&page_size=100&sourceResource.spatial.coordinates=" + lat + "," + lon + "&sort_by_pin=" + lat + "," + lon + "&sort_by=sourceResource.spatial.coordinates&page=" + page + "&api_key=" + dplaMap.API_KEY;
+function lookupByLocation(lat,lon,radius,page,sorted) {
+    url = "http://api.dp.la/v2/items?sourceResource.spatial.distance=" + radius + "&page_size=" + dplaMap.PAGE_SIZE;
+    url += "sourceResource.spatial.coordinates=" + lat + "," + lon;
+    if (sorted) {
+	url += "&sort_by_pin=" + lat + "," + lon + "&sort_by=sourceResource.spatial.coordinates";
+    }
+    url += "&page=" + page + "&api_key=" + dplaMap.API_KEY;
     console.log("fetching results from dpla: " + url);
     dplaMap.ajaxRequest = $.ajax({url: url, dataType: "jsonp", success: displayDocs});
 }
@@ -86,7 +91,7 @@ function displayDocs(data) {
     var done = true;
     if (data.docs.length == dplaMap.PAGE_SIZE && dplaMap.count < dplaMap.MAX_RESULTS - dplaMap.PAGE_SIZE) {
 	dplaMap.page += 1;
-	lookupByLocation(dplaMap.lat,dplaMap.lon,dplaMap.radius,dplaMap.page);
+	lookupByLocation(dplaMap.lat,dplaMap.lon,dplaMap.radius,dplaMap.page, true);
 	done = false;
     }
     $.each(data.docs, displayDoc);
