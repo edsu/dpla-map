@@ -1,7 +1,13 @@
-var API_KEY = "0826ae9d2c064f8c8582859abf50f7d6"
-var map;
-var oms;
-var count = 0;
+// Enable use of the new Google Maps look
+google.maps.visualRefresh=true;
+
+var dplaMap={}
+dplaMap.API_KEY = "0826ae9d2c064f8c8582859abf50f7d6"
+dplaMap.PAGE_SIZE = 100;
+dplaMap.MAX_RESULTS = 500;
+dplaMap.firstDraw = true;
+dplaMap.skipLookup = false;
+dplaMap.markers={};
 
 function main() {
     if (Modernizr.geolocation) {
@@ -17,63 +23,109 @@ function makeMap(position) {
     var loc = new google.maps.LatLng(lat, lon);
 
     var opts = {
-        zoom: getZoom() - 4,
+        zoom: getZoom() - 2,
         center: loc,
         mapTypeId: google.maps.MapTypeId.ROADMAP
     };
 
-    map = new google.maps.Map(document.getElementById("map_canvas"), opts);
-    oms = new OverlappingMarkerSpiderfier(map, {markersWontMove: true, markersWontHide: true});
+    dplaMap.map = new google.maps.Map(document.getElementById("map_canvas"), opts);
+    dplaMap.oms = new OverlappingMarkerSpiderfier(dplaMap.map, {markersWontMove: true, markersWontHide: true});
     var info = new google.maps.InfoWindow();
-    oms.addListener('click', function(marker) {
+    dplaMap.oms.addListener('click', function(marker) {
 	console.log('Click');
 	info.setContent(marker.desc);
-	info.open(map, marker);
+	info.open(dplaMap.map, marker);
     });
     var marker = new google.maps.Marker({
-        map: map,
+        map: dplaMap.map,
         position: loc,
         icon: getCenterpin(),
         title: 'Current Location',
     });
 
-    google.maps.event.addListener(map, 'idle', lookupDocs);
+    google.maps.event.addListener(dplaMap.map, 'idle', lookupDocs);
+    google.maps.event.addListener(dplaMap.map, 'bounds_changed', cancelLookup);
 }
 
 function lookupDocs() {
-    var center = map.getCenter();
-    var lat = center.jb;
-    var lon = center.kb;
+    if (dplaMap.skipLookup) {
+	dplaMap.skipLookup = false;
+	return;
+    }
+    dplaMap.count = 0;
+    dplaMap.page = 0;
+    var center = dplaMap.map.getCenter();
+    dplaMap.lat = center.jb;
+    dplaMap.lon = center.kb;
 
-    var bounds = map.getBounds();
-    var sw = bounds.getSouthWest();
-    var ne = bounds.getNorthEast();
+    var mapBounds = dplaMap.map.getBounds();
+    var sw = mapBounds.getSouthWest();
+    var ne = mapBounds.getNorthEast();
     var nw = new google.maps.LatLng(ne.lat(), sw.lng());
+    // assumes map wider than tall
     var lonWidth = google.maps.geometry.spherical.computeDistanceBetween(ne, nw)
-    radius = parseInt(lonWidth / 2 / 1000) + "km";
+    dplaMap.radius = parseInt(lonWidth / 2 / 1000) + "km";
 
-    url = "http://api.dp.la/v2/items?sourceResource.spatial.distance=" + radius + "&page_size=500&sourceResource.spatial.coordinates=" + lat + "," + lon +"&api_key=" + API_KEY;
-    console.log("fetching results from dpla: " + url);
-    $.ajax({url: url, dataType: "jsonp", success: displayDocs});
+    clearMarkers(mapBounds);
+    dplaMap.markerBounds = new google.maps.LatLngBounds();
+    lookupByLocation(dplaMap.lat,dplaMap.lon,dplaMap.radius,dplaMap.page,true);
 }
 
-function clearMarkers() {
-    var markers = oms.getMarkers();
-    for (var i=0; i < markers.length; i++) {
-	markers[i].setMap(null);
+function lookupByLocation(lat,lon,radius,page,sorted) {
+    url = "http://api.dp.la/v2/items?sourceResource.spatial.distance=" + radius
+	  + "&page_size=" + dplaMap.PAGE_SIZE
+          + "&sourceResource.spatial.coordinates=" + lat + "," + lon
+          + "&page=" + page + "&api_key=" + dplaMap.API_KEY;
+    if (sorted) {
+	url += "&sort_by_pin=" + lat + "," + lon + "&sort_by=sourceResource.spatial.coordinates";
     }
-    oms.clearMarkers();
+    console.log("fetching results from dpla: " + url);
+    dplaMap.ajaxRequest = $.ajax({url: url, dataType: "jsonp", success: displayDocs});
+}
+
+function cancelLookup() {
+    if (dplaMap.ajaxRequest) {
+	dplaMap.ajaxRequest.abort();
+    }
+}
+
+function clearMarkers(mapBounds) {
+    var markers = dplaMap.oms.getMarkers();
+    for (var i=0; i < markers.length; i++) {
+	var marker = markers[i];
+	// Remove any markers outside our map bounds
+	if (!mapBounds.contains(marker.getPosition())) {
+	    marker.setMap(null);
+	    dplaMap.oms.removeMarker(marker);
+	    delete dplaMap.markers[marker.dplaId];
+	}
+    }
 }
 
 function displayDocs(data) {
-    count = 0;
-    clearMarkers();
+    var done = true;
+    if (!dplaMap.firstDraw && data.docs.length == dplaMap.PAGE_SIZE 
+	  && dplaMap.count < dplaMap.MAX_RESULTS - dplaMap.PAGE_SIZE) {
+	dplaMap.page += 1;
+	lookupByLocation(dplaMap.lat,dplaMap.lon,dplaMap.radius,dplaMap.page, true);
+	done = false;
+    }
     $.each(data.docs, displayDoc);
-    console.log('Points mapped: ' + count);
+    console.log('Points mapped: ' + dplaMap.count);
+    if (done && dplaMap.firstDraw) {
+	dplaMap.firstDraw = false;
+	// No need to refresh on next idle because we caused zoom change
+	dplaMap.skipLookup = true;
+	dplaMap.map.fitBounds(dplaMap.markerBounds);
+	console.log('Zoomed to bounds');
+    }
 }
 
 function displayDoc(index, doc) {
-    count += 1;
+    dplaMap.count += 1;
+    if (doc.id in dplaMap.markers) {
+	return;
+    }
     var loc; 
     $(doc.sourceResource.spatial).each(function(i,coord) {
 	var coords = coord.coordinates;
@@ -105,7 +157,7 @@ function displayDoc(index, doc) {
 
             // TODO: Choose marker based on type of resource
             var marker = new google.maps.Marker({
-                map: map,
+                map: dplaMap.map,
                 icon: icon,
                 position: loc,
 		title: title + ' -- ' + provider + date
@@ -122,7 +174,10 @@ function displayDoc(index, doc) {
             provider = '<a target="_new" href="' + viewUrl + '">' + provider + '</a>.';
             var html = '<span class="map_info">' + item +' from ' + provider + ' '+description+'</span>';
 	    marker.desc = html;
-	    oms.addMarker(marker);
+            marker.dplaId = doc.id;
+            dplaMap.markers[doc.id] = marker;
+	    dplaMap.oms.addMarker(marker);
+	    dplaMap.markerBounds.extend(marker.getPosition());
         }
 }
 
