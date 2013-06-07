@@ -1,3 +1,6 @@
+// Enable use of the new Google Maps look
+google.maps.visualRefresh=true;
+
 var dplaMap={}
 dplaMap.API_KEY = "0826ae9d2c064f8c8582859abf50f7d6"
 dplaMap.PAGE_SIZE = 100;
