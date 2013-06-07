@@ -192,11 +192,7 @@ function getCenterpin() {
 }
 
 function getPin(url) {
-    if (is_handheld()) {
-        size = 84;
-    } else {
-        size = 30;
-    }
+    size = 30;
     return new google.maps.MarkerImage(url, new google.maps.Size(64, 64), new google.maps.Point(0, 0), new google.maps.Point(0, size), new google.maps.Size(size, size));
 }
 
