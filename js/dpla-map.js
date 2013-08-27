@@ -42,8 +42,8 @@ function makeMap(position) {
 
 function lookupDocs() {
     var center = map.getCenter();
-    var lat = center.jb;
-    var lon = center.kb;
+    var lat = center.lat();
+    var lon = center.lng();
 
     var bounds = map.getBounds();
     var sw = bounds.getSouthWest();
